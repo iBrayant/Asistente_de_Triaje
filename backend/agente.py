@@ -2,6 +2,7 @@
 import json
 import logging
 import time
+import unicodedata
 from datetime import date
 
 import ollama
@@ -78,9 +79,18 @@ def construir_system_prompt() -> str:
     return SYSTEM_PROMPT.format(fecha=date.today().isoformat())
 
 
+def sin_tildes(texto: str) -> str:
+    return "".join(c for c in unicodedata.normalize("NFD", texto) if unicodedata.category(c) != "Mn")
+
+
 def validar(data: dict, fecha: str) -> dict:
     if not isinstance(data, dict):
         raise ValueError("la respuesta no es un objeto JSON")
+    # El modelo a veces escribe "solicitar_información" o mayúsculas: se normaliza.
+    if isinstance(data.get("accion"), str):
+        data["accion"] = sin_tildes(data["accion"]).strip().lower()
+    if isinstance(data.get("nivel_urgencia"), str):
+        data["nivel_urgencia"] = sin_tildes(data["nivel_urgencia"]).strip().lower()
     faltan = CAMPOS_COMUNES - data.keys()
     if faltan:
         raise ValueError(f"faltan campos: {sorted(faltan)}")
